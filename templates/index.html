@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Cifrado por Voz</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="/static/css/styles.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-3xl font-bold text-center text-blue-600 mb-8">Sistema de Cifrado por Voz</h1>
+
+        <!-- Banner de permisos de audio -->
+        <div id="audio-permission-banner" class="hidden mb-8 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4">
+            <p>Permisos de Audio Requeridos</p>
+            <p class="text-sm">Esta aplicación necesita acceso a tu micrófono. Por favor, permite el acceso cuando el navegador lo solicite.</p>
+        </div>
+
+        <!-- Tabs de navegación -->
+        <div class="flex mb-6 border-b">
+            <button id="encrypt-tab-btn" class="px-6 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">
+                Cifrar
+            </button>
+            <button id="decrypt-tab-btn" class="px-6 py-2 text-gray-600 hover:text-blue-600">
+                Descifrar
+            </button>
+        </div>
+
+        <!-- Sección de Cifrado -->
+        <div id="encrypt-tab" class="space-y-6">
+            <!-- Datos del Archivo -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Datos del Archivo</h2>
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label for="nickname" class="block text-sm font-medium text-gray-700">Nickname</label>
+                        <input type="text" id="nickname" class="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="space-y-2">
+                        <label for="file-to-encrypt" class="block text-sm font-medium text-gray-700">Archivo</label>
+                        <input type="file" id="file-to-encrypt" class="w-full p-2 border rounded-md">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grabación de Voz -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Grabación de Voz</h2>
+                
+                <!-- Instrucciones -->
+                <div class="mb-4 p-4 bg-blue-50 rounded-md">
+                    <h3 class="text-sm font-medium text-blue-800 mb-2">Instrucciones:</h3>
+                    <p class="text-sm text-blue-700">
+                        Di una palabra o frase corta claramente. La grabación se detendrá automáticamente 
+                        después de 5 segundos. Se generará un archivo WAV que necesitarás guardar para 
+                        descifrar el archivo más tarde.
+                    </p>
+                </div>
+
+                <!-- Indicador de nivel de voz -->
+                <div class="mb-4 p-4 bg-gray-50 rounded-md">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Nivel de Voz</h3>
+                    <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="voice-level-indicator" class="h-full w-0 bg-blue-500 transition-all duration-200"></div>
+                    </div>
+                </div>
+
+                <!-- Forma de onda -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Forma de Onda</h3>
+                    <canvas id="voice-waveform" class="w-full h-32 bg-gray-50 rounded-md"></canvas>
+                </div>
+
+                <!-- Espectro de frecuencia -->
+                <div class="mb-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Espectro de Frecuencia</h3>
+                    <canvas id="voice-spectrum" class="w-full h-32 bg-gray-50 rounded-md"></canvas>
+                </div>
+
+                <!-- Texto reconocido -->
+                <div class="mb-4 p-4 bg-gray-50 rounded-md">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Texto Reconocido:</h3>
+                    <p id="recognized-text" class="text-sm text-gray-600">Esperando grabación...</p>
+                </div>
+
+                <!-- Botones de control -->
+                <div class="flex space-x-4">
+                    <button id="start-recording" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Iniciar Grabación
+                    </button>
+                    <button id="stop-recording" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" disabled>
+                        Detener Grabación
+                    </button>
+                </div>
+            </div>
+
+            <!-- Botón de Cifrado -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <button id="encrypt-file" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" disabled>
+                    Cifrar Archivo
+                </button>
+                <div id="encrypt-status" class="mt-4 text-center"></div>
+            </div>
+        </div>
+
+        <!-- Sección de Descifrado -->
+        <div id="decrypt-tab" class="hidden space-y-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Descifrar Archivo</h2>
+                
+                <!-- ID del archivo -->
+                <div class="mb-6">
+                    <label for="file-id" class="block text-sm font-medium text-gray-700 mb-2">
+                        ID del Archivo
+                    </label>
+                    <input type="text" id="file-id" class="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <!-- Archivo de clave de voz -->
+                <div class="mb-6">
+                    <label for="voice-key-file" class="block text-sm font-medium text-gray-700 mb-2">
+                        Archivo de Clave de Voz (WAV)
+                    </label>
+                    <p class="text-sm text-gray-500 mb-2">
+                        Sube el archivo WAV que se generó cuando cifraste el archivo
+                    </p>
+                    <input type="file" id="voice-key-file" accept=".wav" class="w-full p-2 border rounded-md">
+                </div>
+
+                <!-- Visualización de voz verificación -->
+                <div class="space-y-4 mb-6">
+                    <div class="p-4 bg-gray-50 rounded-md">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Nivel de Voz</h3>
+                        <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="voice-level-indicator-verify" class="h-full w-0 bg-blue-500 transition-all duration-200"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Forma de Onda</h3>
+                        <canvas id="voice-waveform-verify" class="w-full h-32 bg-gray-50 rounded-md"></canvas>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Espectro de Frecuencia</h3>
+                        <canvas id="voice-spectrum-verify" class="w-full h-32 bg-gray-50 rounded-md"></canvas>
+                    </div>
+
+                    <div class="p-4 bg-gray-50 rounded-md">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Texto Reconocido:</h3>
+                        <p id="verify-recognized-text" class="text-sm text-gray-600">Esperando grabación...</p>
+                    </div>
+                </div>
+
+                <!-- Puntuación de similitud -->
+                <div id="similarity-score" class="mt-2 text-sm"></div>
+
+                <!-- Botón de descifrado -->
+                <button id="decrypt-file" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                    Descifrar Archivo
+                </button>
+                <div id="decrypt-status" class="mt-4 text-center"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/voiceProcessing.js"></script>
+    <script>
+        // Manejo de tabs
+        document.getElementById('encrypt-tab-btn').addEventListener('click', function() {
+            document.getElementById('encrypt-tab').classList.remove('hidden');
+            document.getElementById('decrypt-tab').classList.add('hidden');
+            this.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            this.classList.remove('text-gray-600');
+            document.getElementById('decrypt-tab-btn').classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+            document.getElementById('decrypt-tab-btn').classList.add('text-gray-600');
+        });
+
+        document.getElementById('decrypt-tab-btn').addEventListener('click', function() {
+            document.getElementById('decrypt-tab').classList.remove('hidden');
+            document.getElementById('encrypt-tab').classList.add('hidden');
+            this.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            this.classList.remove('text-gray-600');
+            document.getElementById('encrypt-tab-btn').classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+            document.getElementById('encrypt-tab-btn').classList.add('text-gray-600');
+        });
+    </script>
+</body>
+</html>
